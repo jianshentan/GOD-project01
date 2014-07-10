@@ -18,13 +18,20 @@ var T = new Twit({
 });
 
 // text files
-var INPUT_FILE = "input_file",
-    OUTPUT_FILE = "output_file",
-    SOURCE = "source";
+var INPUT_FILE = "input_file.txt",
+    OUTPUT_FILE = "output_file.txt",
+    SOURCE = "source.txt",
+    TRANSLATED = "translated.txt";
 
 // ============================================================ //
 
-function renewAccessToken() {
+// concurrent process that renews access token every 9 
+// minutes, since it expires every 10 minutes
+
+renewToken();
+setInterval( renewToken, 540000 );
+
+function renewToken() {
     request.post(
         access_token_url,
         {
@@ -44,11 +51,6 @@ function renewAccessToken() {
         }
     )
 };
-
-// concurrent process that renews access token every 9 
-// minutes, since it expires every 10 minutes
-setInterval( renewAccessToken, 540000 );
-renewAccessToken();
 
 // ============================================================ //
 
@@ -72,6 +74,11 @@ var i = setInterval( function() {
 
 // param: file to make
 function buildInput( file ) {
+    if( !fs.existsSync( SOURCE ) ) {
+        console.error( "the 'source' file does not exist" );
+        process.exit( 1 );
+    }
+
     var data = fs.readFileSync( SOURCE, 'utf8' ),
         array = data.split(/\r\n|\r|\n/g),
         array = array.splice( 0, array.length - 1 );
@@ -90,14 +97,25 @@ function createOutput( file ) {
 function runApplication( inputFile, outputFile ) {
 
     var inputData = readFile( inputFile ),
-        outputData = readFile( outputFile ),
-        total = inputData.length,
-        counter = 0;
+        outputData = readFile( outputFile );
 
-    var i = setInterval( function() {
-        if( total > counter ) {
+    if( !inputData ) {
+        console.error( "No input! Please check the 'source' file" );
+        return;
+    }
 
-            var text = inputData[ counter ];
+    if( !outputData ) {
+        outputData = [];
+    }
+
+    loop();
+    var interval = setInterval( loop, /*10800000*/ 40000 );
+
+    function loop() {
+        if( inputData.length > 0 ) {
+
+            var text = inputData[ 0 ];
+            text = text.replace( /[\.,-?@\/#!$%\^&\*;:{}=\-_`~()]/g, '!' );
             translate( text, tweet );
 
             function tweet( text ) {
@@ -105,29 +123,46 @@ function runApplication( inputFile, outputFile ) {
                     if( err ) {
                         console.log( err );
                     } else {
-                        console.log( data );
+                        logTranslation( data[ "text" ] );
+                        console.log( data[ "text" ] );
                     }
                 });
             };
 
             // update inputData array and save it to inputFile
-            inputdata = inputData.splice(1, inputData.length);
-            writeTofile( inputData, inputFile );
+            inputData = inputData.splice(1, inputData.length);
+            writeToFile( inputData, inputFile );
 
             // update outputData array and save it to outputFile
             outputData.push( text );
             writeToFile( outputData, outputFile );
 
-            counter++;
         } else {
-            clearInterval( i );
-        }
+            clearInterval( interval );
 
-    }, 10800000 );
+            // application is done. peaceful exit
+            process.exit( 0 );
+        }
+    };
+    
+};
+
+function logTranslation( text ) {
+    if( fs.existsSync( TRANSLATED ) ) {
+        fs.writeFileSync( TRANSLATED, text );
+    } else {
+        fs.openSync( TRANSLATED, 'w' );
+    }
 };
 
 function readFile( file ) {
-    return JSON.parse( fs.readFileSync( file, "utf8") );
+    var data = fs.readFileSync( file, "utf8" );
+    if( data ) {
+        return JSON.parse( fs.readFileSync( file, "utf8") );
+    } else {
+        return null;
+    }
+
 };
 
 function writeToFile( array, file ) {
