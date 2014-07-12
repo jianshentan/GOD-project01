@@ -108,6 +108,8 @@ function runApplication( inputFile, outputFile ) {
         outputData = [];
     }
 
+    inputData = shuffle( inputData );
+
     loop();
     var interval = setInterval( loop, /*10800000*/ 40000 );
 
@@ -147,12 +149,16 @@ function runApplication( inputFile, outputFile ) {
     
 };
 
+function shuffle( o ){ //v1.0
+    for(var j, x, i = o.length; i; j = Math.floor(Math.random() * i), x = o[--i], o[i] = o[j], o[j] = x);
+    return o;
+};
+
 function logTranslation( text ) {
-    if( fs.existsSync( TRANSLATED ) ) {
-        fs.writeFileSync( TRANSLATED, text );
-    } else {
+    if( !fs.existsSync( TRANSLATED ) ) {
         fs.openSync( TRANSLATED, 'w' );
     }
+    fs.writeFileSync( TRANSLATED, text );
 };
 
 function readFile( file ) {
