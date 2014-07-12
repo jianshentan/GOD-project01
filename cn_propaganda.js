@@ -111,7 +111,7 @@ function runApplication( inputFile, outputFile ) {
     inputData = shuffle( inputData );
 
     loop();
-    var interval = setInterval( loop, /*10800000*/ 40000 );
+    var interval = setInterval( loop, 10800000 );
 
     function loop() {
         if( inputData.length > 0 ) {
